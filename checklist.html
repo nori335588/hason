@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>荷物チェックリスト</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap');
+
+  :root {
+    --ink: #1a1a2e;
+    --paper: #faf8f3;
+    --accent: #2563a8;
+    --border: #2c2c3e;
+    --light: #f0ede4;
+    --mid: #d5d0c4;
+    --green: #27ae60;
+    --red: #c0392b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: #e8e4d9;
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px 16px 60px;
+    background-image: repeating-linear-gradient(
+      0deg, transparent, transparent 24px, rgba(0,0,0,0.04) 24px, rgba(0,0,0,0.04) 25px
+    );
+  }
+
+  h1.site-title {
+    font-family: 'Noto Serif JP', serif; font-size: 13px; color: #888;
+    letter-spacing: 0.15em; margin-bottom: 8px; text-align: center;
+  }
+
+  .nav-links {
+    display: flex; gap: 12px; margin-bottom: 20px;
+    font-size: 12px;
+  }
+  .nav-links a {
+    color: #888; text-decoration: none; padding: 4px 10px;
+    border: 1px solid var(--mid); border-radius: 2px; background: var(--paper);
+  }
+  .nav-links a:hover { color: var(--ink); border-color: var(--border); }
+  .nav-links a.current { color: var(--accent); border-color: var(--accent); font-weight: 700; }
+
+  .card {
+    background: var(--paper); border: 2px solid var(--border);
+    border-radius: 2px; box-shadow: 4px 6px 0 rgba(0,0,0,0.18);
+    padding: 32px 36px; position: relative;
+    width: 100%; max-width: 680px;
+  }
+  .card::before {
+    content: ''; position: absolute;
+    top: 6px; left: 6px; right: -6px; bottom: -6px;
+    background: var(--mid); z-index: -1; border-radius: 2px;
+  }
+
+  .doc-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 20px;
+  }
+  .company-name { font-size: 10px; color: #aaa; letter-spacing: 0.05em; }
+
+  .doc-title {
+    font-family: 'Noto Serif JP', serif; font-size: 24px; font-weight: 700;
+    text-align: center; letter-spacing: 0.2em; color: var(--ink);
+    margin-bottom: 24px; padding-bottom: 14px;
+    border-bottom: 2.5px double var(--border);
+  }
+
+  /* 利用者情報 */
+  .info-table { width: 100%; border-collapse: collapse; border: 1.5px solid var(--border); margin-bottom: 20px; }
+  .info-table tr { border-bottom: 1.5px solid var(--border); }
+  .info-table tr:last-child { border-bottom: none; }
+  .info-table .lc {
+    background: var(--light); padding: 8px 12px; font-size: 12px;
+    font-weight: 500; letter-spacing: 0.08em; white-space: nowrap;
+    border-right: 1.5px solid var(--border); width: 90px; vertical-align: middle;
+  }
+  .info-table .vc { padding: 6px 10px; vertical-align: middle; }
+
+  input[type="text"], select {
+    font-family: 'Noto Sans JP', sans-serif; font-size: 14px;
+    color: var(--ink); border: none; background: transparent;
+    width: 100%; outline: none; padding: 3px 0;
+    border-bottom: 1.5px dashed var(--mid); transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  input[type="text"]:focus, select:focus {
+    border-bottom-color: var(--accent); background: rgba(37,99,168,0.03);
+  }
+
+  .date-row { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+  .date-row input { max-width: 44px; text-align: center; }
+  .dl { white-space: nowrap; color: #555; font-size: 13px; }
+
+  /* チェックセクション */
+  .section-block { margin-bottom: 16px; border: 1.5px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .section-title {
+    background: var(--ink); color: white;
+    padding: 8px 14px; font-size: 13px; font-weight: 700;
+    letter-spacing: 0.1em; display: flex; justify-content: space-between; align-items: center;
+  }
+  .section-note { font-size: 10px; font-weight: 400; opacity: 0.8; }
+  .section-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .check-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; border-bottom: 1px solid var(--light);
+    border-right: 1px solid var(--light);
+    cursor: pointer; transition: background 0.15s; user-select: none;
+    font-size: 13px; color: var(--ink);
+  }
+  .check-item:hover { background: rgba(37,99,168,0.05); }
+  .check-item.checked { background: rgba(39,174,96,0.08); color: #1a7a40; }
+  .check-item.na { background: rgba(0,0,0,0.04); color: #aaa; text-decoration: line-through; }
+
+  /* カスタムチェックボックス */
+  .cb {
+    width: 18px; height: 18px; flex-shrink: 0;
+    border: 2px solid var(--mid); border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; background: white;
+  }
+  .check-item.checked .cb { background: var(--green); border-color: var(--green); }
+  .check-item.na .cb { background: #ddd; border-color: #ccc; }
+  .cb-inner { color: white; font-size: 11px; font-weight: 700; display: none; }
+  .check-item.checked .cb-inner { display: block; }
+  .check-item.na .cb-inner { display: block; color: #999; }
+
+  /* 3状態切り替え表示 */
+  .state-label {
+    margin-left: auto; font-size: 9px; padding: 2px 5px;
+    border-radius: 3px; white-space: nowrap; flex-shrink: 0;
+  }
+  .check-item.checked .state-label { background: #d4edda; color: #155724; }
+  .check-item.na .state-label { background: #e9ecef; color: #6c757d; }
+
+  /* 進捗バー */
+  .progress-wrap { margin-bottom: 20px; }
+  .progress-bar-bg {
+    height: 8px; background: var(--light); border-radius: 4px;
+    border: 1px solid var(--mid); overflow: hidden; margin-bottom: 4px;
+  }
+  .progress-bar-fill {
+    height: 100%; background: var(--green); border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+  .progress-text { font-size: 11px; color: #888; text-align: right; }
+
+  /* ボタン */
+  .btn-row { display: flex; gap: 12px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+  .btn {
+    font-family: 'Noto Sans JP', sans-serif; font-size: 14px; font-weight: 700;
+    padding: 11px 24px; border: 2px solid var(--border);
+    cursor: pointer; letter-spacing: 0.08em; transition: all 0.15s; border-radius: 2px;
+  }
+  .btn-primary { background: var(--ink); color: white; box-shadow: 3px 3px 0 var(--border); }
+  .btn-primary:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--border); }
+  .btn-secondary { background: var(--paper); color: var(--ink); box-shadow: 3px 3px 0 var(--mid); }
+  .btn-secondary:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--mid); }
+  .btn-green { background: var(--green); color: white; border-color: #1e8449; box-shadow: 3px 3px 0 #1e8449; }
+
+  /* 完了バナー */
+  .complete-banner {
+    display: none; background: #d4edda; border: 2px solid #c3e6cb;
+    border-radius: 2px; padding: 14px 20px; text-align: center;
+    margin-bottom: 16px; font-weight: 700; color: #155724; font-size: 15px;
+  }
+  .complete-banner.show { display: block; }
+
+  /* 備考 */
+  .memo-area {
+    width: 100%; font-family: 'Noto Sans JP', sans-serif; font-size: 13px;
+    border: 1.5px solid var(--mid); border-radius: 2px; padding: 8px 10px;
+    outline: none; resize: vertical; min-height: 60px; background: white;
+    color: var(--ink); line-height: 1.8;
+  }
+  .memo-area:focus { border-color: var(--accent); }
+
+  /* 担当者欄 */
+  .sign-row {
+    display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap;
+  }
+  .sign-box {
+    flex: 1; min-width: 120px; border: 1.5px solid var(--border);
+    text-align: center; border-radius: 2px;
+  }
+  .sign-box .sign-label {
+    background: var(--light); padding: 4px 8px; font-size: 11px;
+    font-weight: 500; border-bottom: 1.5px solid var(--border); letter-spacing: 0.05em;
+  }
+  .sign-box .sign-field { padding: 10px 8px; min-height: 48px; }
+  .sign-box input {
+    text-align: center; font-size: 13px; border-bottom: 1.5px dashed var(--mid);
+  }
+
+  /* 印刷 */
+  @media print {
+    body { background: white; padding: 0; }
+    .nav-links, .btn-row, h1.site-title { display: none !important; }
+    .card { box-shadow: none; border: 1px solid #ccc; padding: 16px; }
+    .card::before { display: none; }
+    .progress-wrap { display: none; }
+    .check-item { break-inside: avoid; }
+  }
+
+  @media (max-width: 480px) {
+    .card { padding: 20px 14px; }
+    .doc-title { font-size: 19px; }
+    .section-items { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1 class="site-title">株式会社エバーグリーン・よつ葉　物品管理システム</h1>
+
+<div class="nav-links">
+  <a href="index.html">📝 破損報告書</a>
+  <a href="checklist.html" class="current">✅ 荷物チェック</a>
+</div>
+
+<div class="card">
+  <div class="doc-header">
+    <div class="company-name">株式会社エバーグリーン・よつ葉</div>
+    <div style="font-size:11px;color:#aaa;" id="docDate"></div>
+  </div>
+
+  <div class="doc-title">荷 物 チ ェ ッ ク リ ス ト</div>
+
+  <!-- 利用者情報 -->
+  <table class="info-table">
+    <tr>
+      <td class="lc">実施日時</td>
+      <td class="vc">
+        <div class="date-row">
+          <span class="dl">令和</span>
+          <input type="text" id="f-year" maxlength="2" style="max-width:36px;text-align:center;">
+          <span class="dl">年</span>
+          <input type="text" id="f-month" maxlength="2" style="max-width:36px;text-align:center;">
+          <span class="dl">月</span>
+          <input type="text" id="f-day" maxlength="2" style="max-width:36px;text-align:center;">
+          <span class="dl">日</span>
+          <select id="f-dow" style="max-width:66px;border-bottom:1.5px dashed var(--mid);">
+            <option>（月）</option><option>（火）</option><option>（水）</option>
+            <option>（木）</option><option>（金）</option><option>（土）</option><option>（日）</option>
+          </select>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="lc">利用者名</td>
+      <td class="vc"><input type="text" id="f-name" placeholder="例：よつば 花子　様"></td>
+    </tr>
+    <tr>
+      <td class="lc">区　分</td>
+      <td class="vc">
+        <select id="f-type">
+          <option value="">--- 選択 ---</option>
+          <option value="入所時">入所時</option>
+          <option value="外泊前">外泊前</option>
+          <option value="外泊後">外泊後</option>
+          <option value="退所時">退所時</option>
+          <option value="その他">その他</option>
+        </select>
+      </td>
+    </tr>
+  </table>
+
+  <!-- 進捗バー -->
+  <div class="progress-wrap">
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+    </div>
+    <div class="progress-text" id="progressText">0 / 0 項目確認済み</div>
+  </div>
+
+  <!-- 完了バナー -->
+  <div class="complete-banner" id="completeBanner">✅ 全項目の確認が完了しました！</div>
+
+  <!-- チェックリスト -->
+  <div id="checklistBody"></div>
+
+  <!-- 備考 -->
+  <div style="margin-top:16px;">
+    <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:#555;letter-spacing:0.08em;">備　考</div>
+    <textarea class="memo-area" id="f-memo" placeholder="特記事項があれば記入してください。"></textarea>
+  </div>
+
+  <!-- 担当者 -->
+  <div class="sign-row">
+    <div class="sign-box">
+      <div class="sign-label">確認担当者</div>
+      <div class="sign-field"><input type="text" id="f-staff" placeholder="氏名"></div>
+    </div>
+    <div class="sign-box">
+      <div class="sign-label">ご家族確認</div>
+      <div class="sign-field"><input type="text" id="f-family" placeholder="氏名・続柄"></div>
+    </div>
+    <div class="sign-box">
+      <div class="sign-label">責任者</div>
+      <div class="sign-field"><input type="text" id="f-manager" placeholder="氏名"></div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" onclick="resetAll()">リセット</button>
+    <button class="btn btn-secondary" onclick="window.print()">🖨 印刷</button>
+    <button class="btn btn-primary" onclick="checkAll()">全てチェック</button>
+    <button class="btn btn-green" id="submitBtn" onclick="submitChecklist()">📤 送信する</button>
+  </div>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbw9hubuwQp2YlLEdIGmYPzCPfPuIZPnOf5GtIS3b1qGGrkAdnwjrE94bnvxov_kCqAD-g/exec';
+
+async function submitChecklist() {
+  const name  = document.getElementById('f-name').value.trim();
+  const type  = document.getElementById('f-type').value;
+  const staff = document.getElementById('f-staff').value.trim();
+  if (!name) { alert('利用者名を入力してください。'); return; }
+  if (!type) { alert('区分を選択してください。'); return; }
+
+  const now = new Date();
+  const dateStr = `令和${now.getFullYear()-2018}年${now.getMonth()+1}月${now.getDate()}日`;
+
+  const btn = document.getElementById('submitBtn');
+  btn.textContent = '送信中...'; btn.disabled = true;
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'checklist_submit',
+        id: 'CL-' + Date.now(),
+        date: dateStr,
+        name, type, staff,
+        family:  document.getElementById('f-family').value.trim(),
+        manager: document.getElementById('f-manager').value.trim(),
+        memo:    document.getElementById('f-memo').value.trim(),
+        checks: state
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert('✅ スプレッドシートに送信しました！');
+    } else {
+      throw new Error(data.error);
+    }
+  } catch(e) {
+    alert('送信に失敗しました: ' + e);
+  } finally {
+    btn.textContent = '📤 送信する'; btn.disabled = false;
+  }
+}
+
+const SECTIONS = [
+  {
+    key: 'office',
+    title: '《 事務所預かり 》',
+    note: '退所時確認を忘れない様に',
+    items: ['お金','診察券','各種保険証類','その他（　　　　　　）']
+  },
+  {
+    key: 'nursing',
+    title: '《 看護預かり 》',
+    note: 'ホールに忘れがちです！',
+    items: ['お薬','お薬手帳','血圧手帳','目薬（ホールも確認）','その他（　　　　　）']
+  },
+  {
+    key: 'hall',
+    title: '《 ホール預かり 》',
+    note: '忘れがちです！！',
+    items: ['おかず','乳製品','お菓子','飲料']
+  },
+  {
+    key: 'clothing',
+    title: '《 衣　類 》',
+    note: '',
+    items: [
+      'タオルケット','毛布','バスタオル','フェイスタオル',
+      '布パンツ','肌着上（長袖）','肌着上（半袖）',
+      'ズボン下（長）','ズボン下（半）','ベスト（袖なし）','カーディガン',
+      'パジャマ（上）','パジャマ（下）',
+      '上衣（長袖）','上衣（半袖）',
+      'ズボン（長）','ズボン（半）','スカート','靴下',
+      'アウター（ジャンパー・コート）',
+      'その他（　　　　　　）'
+    ]
+  },
+  {
+    key: 'shoes',
+    title: '《 靴・小物 》',
+    note: '',
+    items: ['中靴','外靴','帽子','マフラー','手袋']
+  },
+  {
+    key: 'daily',
+    title: '《 日用品・その他 》',
+    note: '',
+    items: [
+      '車椅子','ポータブルトイレ','荷物バッグ',
+      '財布（　　　　　円）',
+      '携帯（ガラケー・スマホ）','携帯用充電器',
+      '口腔ケア コップ','口腔ケア 歯ブラシ','口腔ケア 歯磨き粉','口腔ケア（　　　　　）',
+      '義歯（上・下・部分）','義歯ケース',
+      '髭剃り（電動・T字）','髭剃り用充電器',
+      'ヘアブラシ','置時計','腕時計','眼鏡（ケース 有・無）'
+    ]
+  }
+];
+
+// state: 0=未確認 1=確認済 2=該当なし
+let state = {};
+
+function initState() {
+  SECTIONS.forEach(sec => {
+    sec.items.forEach((_, i) => {
+      const key = sec.key + '_' + i;
+      if (!(key in state)) state[key] = 0;
+    });
+  });
+}
+
+function render() {
+  const body = document.getElementById('checklistBody');
+  body.innerHTML = '';
+  SECTIONS.forEach(sec => {
+    const block = document.createElement('div');
+    block.className = 'section-block';
+    block.innerHTML = `
+      <div class="section-title">
+        ${sec.title}
+        ${sec.note ? `<span class="section-note">⚠️ ${sec.note}</span>` : ''}
+      </div>
+      <div class="section-items" id="items-${sec.key}"></div>
+    `;
+    body.appendChild(block);
+
+    const grid = block.querySelector('#items-' + sec.key);
+    sec.items.forEach((item, i) => {
+      const key = sec.key + '_' + i;
+      const s = state[key] || 0;
+      const div = document.createElement('div');
+      div.className = 'check-item' + (s === 1 ? ' checked' : s === 2 ? ' na' : '');
+      div.innerHTML = `
+        <div class="cb"><span class="cb-inner">${s === 1 ? '✓' : s === 2 ? '－' : ''}</span></div>
+        <span>${item}</span>
+        ${s === 1 ? '<span class="state-label">確認済</span>' : s === 2 ? '<span class="state-label">該当なし</span>' : ''}
+      `;
+      div.onclick = () => {
+        state[key] = (state[key] + 1) % 3;
+        render();
+        updateProgress();
+      };
+      grid.appendChild(div);
+    });
+  });
+}
+
+function updateProgress() {
+  let total = 0, done = 0;
+  SECTIONS.forEach(sec => {
+    sec.items.forEach((_, i) => {
+      total++;
+      if ((state[sec.key + '_' + i] || 0) > 0) done++;
+    });
+  });
+  const pct = total > 0 ? Math.round(done / total * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `${done} / ${total} 項目確認済み（${pct}%）`;
+  const banner = document.getElementById('completeBanner');
+  banner.classList.toggle('show', done === total && total > 0);
+}
+
+function checkAll() {
+  if (!confirm('全項目を「確認済」にしますか？')) return;
+  SECTIONS.forEach(sec => {
+    sec.items.forEach((_, i) => { state[sec.key + '_' + i] = 1; });
+  });
+  render(); updateProgress();
+}
+
+function resetAll() {
+  if (!confirm('チェックをリセットしますか？')) return;
+  SECTIONS.forEach(sec => {
+    sec.items.forEach((_, i) => { state[sec.key + '_' + i] = 0; });
+  });
+  ['f-name','f-type','f-memo','f-staff','f-family','f-manager'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  render(); updateProgress();
+}
+
+// 日付自動入力
+window.addEventListener('load', () => {
+  const now = new Date();
+  document.getElementById('f-year').value  = now.getFullYear() - 2018;
+  document.getElementById('f-month').value = now.getMonth() + 1;
+  document.getElementById('f-day').value   = now.getDate();
+  document.getElementById('docDate').textContent =
+    `令和${now.getFullYear()-2018}年${now.getMonth()+1}月${now.getDate()}日`;
+  const days = ['（日）','（月）','（火）','（水）','（木）','（金）','（土）'];
+  const sel = document.getElementById('f-dow');
+  const dow = days[now.getDay()];
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].text === dow) { sel.selectedIndex = i; break; }
+  }
+  initState(); render(); updateProgress();
+});
+</script>
+</body>
+</html>
