@@ -177,6 +177,10 @@
       <td class="vc"><input type="text" id="a-name" placeholder="例：よつば 花子　様"></td>
     </tr>
     <tr>
+      <td class="lc">よみがな</td>
+      <td class="vc"><input type="text" id="a-kana" placeholder="例：よつば はなこ（ひらがな）"></td>
+    </tr>
+    <tr>
       <td class="lc">区　分</td>
       <td class="vc">
         <select id="a-type">
@@ -509,7 +513,9 @@ async function submitAdmission() {
       body: JSON.stringify({
         action: 'checklist_submit',
         id: 'CL-' + Date.now(),
-        date, name, type,
+        date, name,
+        kana:      document.getElementById('a-kana').value.trim(),
+        type,
         staff:     document.getElementById('a-staff').value.trim(),
         family:    document.getElementById('a-family').value.trim(),
         manager:   document.getElementById('a-manager').value.trim(),
@@ -565,11 +571,12 @@ function renderKanaIndex() {
   idx.appendChild(allBtn);
 }
 
-function getKanaRow(name) {
-  if (!name) return null;
-  const first = name.trim()[0];
+function getKanaRow(name, kana) {
+  const target = (kana || name || '').trim();
+  if (!target) return null;
+  const first = target[0];
   for (const row of KANA_ROWS) {
-    if (row.chars.some(c => first >= c && first <= row.chars[row.chars.length-1])) return row.label;
+    if (first >= row.chars[0] && first <= row.chars[row.chars.length-1]) return row.label;
   }
   return null;
 }
@@ -595,7 +602,8 @@ function renderResidentList() {
     const row = KANA_ROWS.find(r => r.label === currentKana);
     if (row) {
       records = records.filter(r => {
-        const first = (r.name||'').trim()[0];
+        const target = ((r.kana || r.name) || '').trim();
+        const first = target[0] || '';
         return first >= row.chars[0] && first <= row.chars[row.chars.length-1];
       });
     }
@@ -615,7 +623,7 @@ function renderResidentList() {
       : '<span class="resident-badge">選択</span>';
     div.innerHTML = `
       <div>
-        <div class="resident-name">${r.name}</div>
+        <div class="resident-name">${r.name}${r.kana ? `<span style="font-size:11px;color:#888;font-weight:400;margin-left:6px;">（${r.kana}）</span>` : ''}</div>
         <div class="resident-date">${r.type}　${r.date}</div>
       </div>
       ${badge}`;
