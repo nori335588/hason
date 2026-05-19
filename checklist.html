@@ -124,6 +124,21 @@
 
   .empty-state { text-align: center; padding: 32px; color: #aaa; font-size: 13px; line-height: 2; }
 
+  /* 写真 */
+  .photo-section { margin-top:8px; border:1.5px dashed var(--mid); border-radius:4px; background:var(--light); padding:10px; }
+  .photo-hint { font-size:11px; color:#888; margin-bottom:6px; display:block; }
+  .upload-btn { display:inline-block; padding:5px 14px; background:var(--ink); color:white; font-size:12px; font-family:'Noto Sans JP',sans-serif; border:none; border-radius:2px; cursor:pointer; }
+  .upload-btn:hover { background:#333; }
+  .photo-grid { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .thumb { position:relative; width:80px; height:80px; border:1.5px solid var(--mid); border-radius:2px; overflow:hidden; }
+  .thumb img { width:100%; height:100%; object-fit:cover; cursor:pointer; }
+  .thumb .rm { position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.6); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .photo-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.82); z-index:3000; align-items:center; justify-content:center; }
+  .photo-modal-overlay.open { display:flex; }
+  .photo-modal-overlay img { max-width:92vw; max-height:92vh; border-radius:2px; }
+  .photo-modal-close { position:absolute; top:18px; right:22px; background:none; border:none; color:white; font-size:32px; cursor:pointer; }
+  .upload-progress { font-size:11px; color:var(--accent); margin-top:6px; display:none; }
+
   @media print {
     body { background: white; padding: 0; }
     .nav-links, .btn-row, h1.site-title, .mode-tabs, .kana-index, .progress-wrap, .diff-banner { display: none !important; }
@@ -183,6 +198,16 @@
   <div id="a-checklist-body"></div>
 
   <div style="margin-top:14px;">
+    <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:#555;">📷 荷物の写真</div>
+    <div class="photo-section">
+      <span class="photo-hint">入所時の荷物を写真に撮って添付してください（複数枚可）</span>
+      <button class="upload-btn" onclick="document.getElementById('a-photo-input').click()">📷 写真を追加</button>
+      <input type="file" id="a-photo-input" accept="image/*" multiple style="display:none;" onchange="addAdmissionPhotos(event)">
+      <div class="upload-progress" id="a-upload-progress">アップロード中...</div>
+      <div class="photo-grid" id="a-photo-grid"></div>
+    </div>
+  </div>
+  <div style="margin-top:14px;">
     <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:#555;">備　考</div>
     <textarea class="memo-area" id="a-memo" placeholder="特記事項があれば記入してください。"></textarea>
   </div>
@@ -227,6 +252,7 @@
       <div style="font-size:11px;color:#888;margin-bottom:4px;">入所時記録より</div>
       <div style="font-weight:700;font-size:16px;" id="d-resident-name"></div>
       <div style="font-size:12px;color:#888;" id="d-admission-date"></div>
+      <div id="d-admission-photos" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
     </div>
 
     <table class="info-table">
@@ -310,6 +336,72 @@ let allRecords = []; // スプレッドシートから取得した全記録
 let currentKana = null;
 let currentMode = 'admission';
 let currentSubTab = 'active'; // 'active' or 'discharged'
+
+// ===== 写真状態 =====
+let admissionPhotoUrls = []; // Driveにアップロード済みのURL
+
+async function uploadPhotoToGAS(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const base64 = e.target.result.split(',')[1];
+        const mimeType = file.type;
+        const filename = `CL_${Date.now()}_${file.name}`;
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'upload_photo', base64, mimeType, filename })
+        });
+        const data = await res.json();
+        if (data.ok) resolve(data.url);
+        else reject(new Error(data.error));
+      } catch(err) { reject(err); }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addAdmissionPhotos(e) {
+  const files = Array.from(e.target.files);
+  e.target.value = '';
+  const progress = document.getElementById('a-upload-progress');
+  progress.style.display = 'block';
+  for (const file of files) {
+    try {
+      progress.textContent = `アップロード中... (${admissionPhotoUrls.length + 1}枚目)`;
+      const url = await uploadPhotoToGAS(file);
+      admissionPhotoUrls.push(url);
+      renderAdmissionPhotos();
+    } catch(err) {
+      alert('写真のアップロードに失敗しました: ' + err);
+    }
+  }
+  progress.style.display = 'none';
+}
+
+function renderAdmissionPhotos() {
+  const grid = document.getElementById('a-photo-grid');
+  grid.innerHTML = '';
+  admissionPhotoUrls.forEach((url, i) => {
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.innerHTML = `<img src="${url}" onclick="openPhotoModal('${url}')"><button class="rm" onclick="removeAdmissionPhoto(${i})">✕</button>`;
+    grid.appendChild(div);
+  });
+}
+
+function removeAdmissionPhoto(i) {
+  admissionPhotoUrls.splice(i, 1);
+  renderAdmissionPhotos();
+}
+
+function openPhotoModal(src) {
+  document.getElementById('modalImg').src = src;
+  document.getElementById('photoModal').classList.add('open');
+}
+function closePhotoModal() {
+  document.getElementById('photoModal').classList.remove('open');
+}
 
 // ===== INIT =====
 function initAState() {
@@ -418,11 +510,12 @@ async function submitAdmission() {
         action: 'checklist_submit',
         id: 'CL-' + Date.now(),
         date, name, type,
-        staff:   document.getElementById('a-staff').value.trim(),
-        family:  document.getElementById('a-family').value.trim(),
-        manager: document.getElementById('a-manager').value.trim(),
-        memo:    document.getElementById('a-memo').value.trim(),
-        checks: aState
+        staff:     document.getElementById('a-staff').value.trim(),
+        family:    document.getElementById('a-family').value.trim(),
+        manager:   document.getElementById('a-manager').value.trim(),
+        memo:      document.getElementById('a-memo').value.trim(),
+        checks:    aState,
+        photoUrls: admissionPhotoUrls
       })
     });
     const data = await res.json();
@@ -539,6 +632,11 @@ function showDischargedHistory(record) {
   admissionRecord = record;
   document.getElementById('d-resident-name').textContent = record.name;
   document.getElementById('d-admission-date').textContent = record.type + '　' + record.date;
+  const photoDiv = document.getElementById('d-admission-photos');
+  const urls = record.photoUrls || [];
+  photoDiv.innerHTML = urls.length
+    ? urls.map(u => `<img src="${u}" style="width:70px;height:70px;object-fit:cover;border:1.5px solid var(--mid);border-radius:2px;cursor:pointer;" onclick="openPhotoModal('${u}')">`).join('')
+    : '<span style="font-size:11px;color:#aaa;">写真なし</span>';
   // チェック状態を表示（読み取り専用）
   dState = record.checks || {};
   document.getElementById('discharge-form').style.display = 'block';
@@ -551,6 +649,12 @@ function showDischargedHistory(record) {
 function selectResident(record) {
   document.getElementById('d-submit-btn').style.display = '';
   admissionRecord = record;
+  // 入所時写真を表示
+  const photoDiv = document.getElementById('d-admission-photos');
+  const urls = record.photoUrls || [];
+  photoDiv.innerHTML = urls.length
+    ? urls.map(u => `<img src="${u}" style="width:70px;height:70px;object-fit:cover;border:1.5px solid var(--mid);border-radius:2px;cursor:pointer;" onclick="openPhotoModal('${u}')">`).join('')
+    : '<span style="font-size:11px;color:#aaa;">入所時写真なし</span>';
   initDState(record.checks);
   document.getElementById('d-resident-name').textContent = record.name;
   document.getElementById('d-admission-date').textContent = record.type + '　' + record.date;
@@ -664,5 +768,10 @@ async function submitDischarge() {
   finally { btn.textContent = '📤 退所時として保存'; btn.disabled = false; }
 }
 </script>
+<!-- 写真モーダル -->
+<div class="photo-modal-overlay" id="photoModal" onclick="closePhotoModal()">
+  <button class="photo-modal-close" onclick="closePhotoModal()">✕</button>
+  <img id="modalImg" src="">
+</div>
 </body>
 </html>
